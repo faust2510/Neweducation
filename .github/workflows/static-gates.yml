@@ -1,0 +1,150 @@
+name: static-gates
+
+# 离线门禁：不依赖 Docker / 数据库 / 真实站点，托管 runner 上就能跑。
+#
+# 清单来源 = AGENTS.md §4（16 条）。⚠ 2026-10-17 逐条实测更正：其中 **2 条要活站点**，
+# 放在托管 runner 上必然非零退出 ⇒ 必须拆到 site-gates（不阻塞），否则每次 push 都假红：
+#   · check_english.py（全模式）  站点不可达 → 五个角色全部 bad_login → exit 1
+#   · check_nav_reachable.py     输入源是**活表** website.menu（JSON-RPC）→ exit 2 UNVERIFIED
+# 逐条 rc 实测记录见 docs/audit/ci-offline-gates.md。
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ── 第一层：离线阻塞（§4 里 14 条 + tests/unit 全量 15 份）────────────
+  offline-gates:
+    name: 离线门禁（阻塞）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          # 与实测环境同版（本机 CPython 3.13.13）；脚本无更高版本专有语法
+          python-version: '3.13'
+      # 装的不是「新增的第三方依赖」，而是**现有脚本的模块级 import**，缺了直接 ImportError：
+      #   lxml     → check_view_xpath（以及经它传递 import 的 tests/smoke/gate_seam_check）
+      #   requests → check_english / check_odoo_trace / tests/smoke/gate_seam_check
+      - name: 安装解析依赖
+        run: python3 -m pip install --quiet lxml requests
+
+      # 门禁的自证用例：红了说明有人改了门禁本身，而不是改了业务代码
+      - name: 门禁自证
+        run: |
+          python3 scripts/check_english.py --selftest
+          python3 scripts/check_odoo_trace.py --selftest
+          python3 scripts/check_view_xpath.py --selftest
+          python3 tests/smoke/gate_seam_check.py
+
+      - name: 静态门禁（全模式）
+        run: |
+          python3 scripts/check_view_xpath.py
+          for c in \
+            check_doc_module_count check_docs_index check_manifest_order check_manifest_tracking \
+            check_qweb_dict_foreach check_recordset_none check_shell_exitcode \
+            check_ui_surface check_po_sanity check_alias_not_extended \
+          ; do
+            echo "=== $c"
+            python3 "scripts/$c.py"
+          done
+
+      # check_english 的全模式要站点，**离线能跑的是它的名单对账子模式**
+      # （脚本自述「--list 只打印、不连服务」，实测站点不可达时 rc=0）。
+      - name: 汉化门禁 · 名单对账（离线子模式）
+        run: python3 scripts/check_english.py --list
+
+      # tests/unit/*.py 全部是纯函数单测（importlib.util 直接加载源文件，无 import odoo、
+      # 不发请求）；逐个跑而不是引 pytest —— 仓里没有 pytest 依赖，也不为此新增。
+      - name: 单元测试（tests/unit）
+        run: |
+          for t in tests/unit/*.py; do
+            echo "=== $t"
+            python3 "$t"
+          done
+
+  # ── §4 里需要活站点的 2 条：托管 runner 上没有站点 ⇒ 必然非零退出。
+  #    故 continue-on-error —— 在 GitHub 上它只如实报「环境未就绪」（ENV），不阻塞合并；
+  #    自建 runner（本机有 edu19 站点）上删掉这行即为真门禁。
+  site-gates:
+    name: 需站点门禁（不阻塞）
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: 安装解析依赖
+        run: python3 -m pip install --quiet lxml requests
+      # 站点不可达 → bad_login → exit 1（站点在跑时 exit 0，本机实测）
+      - name: 汉化/品牌门禁（全模式，需站点）
+        run: python3 scripts/check_english.py
+      # 活表 website.menu 读不到 → exit 2 UNVERIFIED（站点在跑时 exit 0，本机实测）
+      - name: 导航可达性（需站点）
+        run: python3 scripts/check_nav_reachable.py
+
+  # ── 已知红灯 · 不阻塞 ────────────────────────────────────────────────
+  known-red:
+    name: 已知红灯（不阻塞）
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      # 2026-10-17 本机实测 rc（Lead 复核）：
+      #   check_md_tables=1（docs/plans/gradebook-center-design.md:182 表头 2 格/本行 5 格）
+      #   check_menu_data_sync=1（菜单 547 的 active 应为 False，XML 未声明）
+      #   check_nav_jobs_entries=1（2 条导航指向空页 /jobs）
+      # 原第 4 条 check_doc_module_count 已于 2026-10-17 修绿（commit 96b3243：README.md:3 与
+      # docs/code-map.md:47 都改成 15）⇒ 已移入上面的阻塞 job，不再在此「只报不判」。
+      # 末尾的 || echo ::warning:: 让本步骤整体为绿、逐条以注解呈现：
+      # 真回归在 PR 里看得见，但不会把每次 push 都变红。
+      - name: 已知缺陷清单（只报不判）
+        run: |
+          for c in check_md_tables check_menu_data_sync check_nav_jobs_entries; do
+            echo "=== $c"
+            python3 "scripts/$c.py" || echo "::warning title=$c::$c 仍为红（见 AGENTS.md §4）"
+          done
+
+  # ── 第二层（可选）：Odoo 模块升级 + --test-enable ─────────────────────
+  # **【未验证】且当前形态下不成立，故整块留作注释、不参与 CI。理由三条，都有本机证据：**
+  #  ① 无法真跑通：需要托管 runner 现拉 odoo:19 + postgres:16 并初始化库，本机没有
+  #     GitHub Actions 环境，我证明不了这段 YAML 真能起得来 —— 按纪律标【未验证】，
+  #     不写成「看起来能跑」的活 job。
+  #  ② 更硬的一条：基座不在仓里。`openeducat_erp/` 被 .gitignore 排除、git 里不存在
+  #     （`git ls-files openeducat_erp` 输出为空），而 custom_addons/edu_portal/__manifest__.py:28
+  #     起依赖 openeducat_core / openeducat_timetable / openeducat_attendance / … ⇒
+  #     **干净检出里任何 edu_* 模块都装不起来**。要跑通就得在 CI 里联网拉 OpenEduCat 19.0
+  #     快照 —— 那是新增外部依赖，且与「基座快照逐字一致」的要求冲突 ⇒ 不做。
+  #  ③ 真要做，正确形态是在**自建 runner** 上用现成的 edu19-clone 栈跑
+  #     `bash scripts/safe_upgrade.sh <模块>`（内含串行锁），而不是在托管 runner 上重建基座。
+  #
+  # odoo-module-test:                      # 【未验证·未启用】
+  #   name: Odoo 模块升级与单测【未验证】
+  #   runs-on: ubuntu-latest                # 真启用时应改自建 runner
+  #   continue-on-error: true
+  #   services:
+  #     postgres:
+  #       image: postgres:16
+  #       env:
+  #         POSTGRES_USER: odoo
+  #         POSTGRES_PASSWORD: odoo
+  #       ports: ['5432:5432']
+  #       options: >-
+  #         --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: 起 Odoo 19 并升级模块
+  #       # ⚠ 前置：基座 openeducat_* 必须先就位（见上面 ②），否则模块装不上。
+  #       run: |
+  #         docker run -d --name edu-ci --network host \
+  #           -v "$PWD/custom_addons:/mnt/extra-addons:ro" \
+  #           odoo:19 odoo -d ci_edu -u edu_portal --test-enable --stop-after-init \
+  #                --db_host=localhost --db_user=odoo --db_password=odoo \
+  #                --addons-path=/mnt/extra-addons

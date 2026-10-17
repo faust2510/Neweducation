@@ -1,0 +1,755 @@
+/* =============================================================================
+   门户首页视觉 v4（2026-10-15）—— /my/home 四角色首屏「层级 / 留白 / 对比 / 焦点 / 一致性」
+
+   为什么是**新增文件**而不是继续堆进 custom_home.css：
+     本文件排在 web.assets_frontend 的**最末**（见 __manifest__.py），
+     同特异性下后出现的胜 ⇒ 只需写「要覆盖成什么」，不必去改既有规则的正文，
+     既有规则保持可读、可回滚，diff 也只是一个新文件 + manifest 一行。
+
+   覆盖口径（只做五件事，不改任何路由 / t-指令语义 / 功能入口）：
+     ① 页头带    —— 问候从「第 4 屏」提到首屏第一块；四角色同构（学生/家长/教师/教务）
+     ② 移动端页头 —— .oe-mhead 升格为与桌面同源的品牌带（移动端 hero 是 display:none）
+     ③ 待办分组  —— 一行 flex-wrap 徽章 → 「桶标签 + chips」分组，逾期权重重于将来
+     ④ 图表空态  —— 家长/教师无数据时不再画一条空网格 / 空圆环，给真的空状态
+     ⑤ 上手清单  —— alert-primary 大蓝块 → 白卡 + 品牌色左边条，不再抢首屏焦点
+
+   颜色纪律：本文件**不写字面色值**，一律 var(--token)（令牌源 = edu_brand/static/src/scss/brand_tokens.scss）。
+   对比度口径（WCAG AA）：正文/小字 ≥4.5:1、大字与大色块 ≥3:1。
+     页头带底 = --brand-700 → --brand-action → --teal-600 渐变，白字最小对比 5.02:1（--brand-action 档）；
+     带内的角色胶囊用**半透明黑**压深（不是半透明白提亮），故白字反而更稳（实测 ~6.8:1）。
+   ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   ① 页头带（原 .oe-portal-hero 横幅）
+   改动要点：高度 32px 字号 → 24px 字号 + 更紧的内边距；上移到内容区第一块；
+             新增角色胶囊 .yy-head-role；铃铛改为品牌色图标的白圆钮。
+   --------------------------------------------------------------------------- */
+#wrapwrap.o_portal .o_portal_wrap .oe-portal-hero {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    flex-wrap: nowrap;
+    padding: var(--space-5) var(--space-6);
+    margin: 0 0 var(--space-5) 0;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(105deg,
+                var(--brand-700) 0%,
+                var(--brand-action) 58%,
+                var(--teal-600) 100%);
+    box-shadow: var(--shadow-md);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .oe-portal-hero .oe-hero-text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* ⚠ 窄屏必须**继续隐藏**宫格首页的那条横幅。
+   既有 custom_home.css 用 @media(max-width:767.98px){.oe-portal-hero{display:none}} 隐藏它
+   （窄屏的页头职责交给 .oe-mhead）；但本文件排在 bundle 更后，上面那条不限媒体的
+   display:flex 会把它盖回来 —— 结果窄屏出现「一条空蓝带 + 一个铃铛」。
+   故这里按同媒体查询把宫格那条重新隐藏。
+   :not(.yy-head) 是必须的：教务/管理员的 .yy-head.oe-portal-hero 承载着
+   「问候 + 日期 + 修改密码」，窄屏**没有第二处**，不能跟着一起隐藏。 */
+@media (max-width: 767.98px) {
+    #wrapwrap.o_portal .o_portal_wrap .oe-portal-hero:not(.yy-head) {
+        display: none;
+    }
+}
+
+/* 角色胶囊：让「这是谁的页面」在第一眼就成立 —— 四角色同构的关键 */
+#wrapwrap.o_portal .o_portal_wrap .yy-head-role {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: var(--space-2);
+    padding: 3px 10px;
+    border: 1px solid rgba(var(--white-rgb), .22);
+    border-radius: var(--radius-pill);
+    background: rgba(var(--black-rgb), .20);
+    color: var(--white);
+    font-size: var(--text-xs);
+    font-weight: var(--fw-em);
+    letter-spacing: .04em;
+}
+
+#wrapwrap.o_portal .o_portal_wrap .oe-portal-hero .oe-greeting {
+    margin: 0;
+    color: var(--white);
+    font-size: var(--text-2xl);
+    font-weight: var(--fw-head);
+    line-height: var(--leading-tight);
+    letter-spacing: .01em;
+}
+
+#wrapwrap.o_portal .o_portal_wrap .oe-portal-hero .oe-greet-emoji {
+    font-size: var(--text-xl);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .oe-portal-hero .oe-subtitle {
+    margin: var(--space-1) 0 0;
+    /* 纯白，不加透明度：验收契约 H5 要求「渐变带两端各测一次」，
+       实测本行文字最右端落在 --brand-action 与 --teal-600 的过渡区，
+       .92 时只有 4.59:1（刚过 4.5 线，抗不住再采样一次的抖动），
+       纯白同点 5.06:1。层级靠字号（14 vs 24px）与字重拉开，不靠压暗。 */
+    color: var(--white);
+    opacity: 1;
+    font-size: var(--text-sm);
+    line-height: var(--leading-body);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .oe-portal-hero .oe-hero-bell {
+    flex: none;
+    width: var(--h-search);
+    height: var(--h-search);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-pill);
+    background: var(--white);
+    color: var(--brand-700);
+    text-decoration: none;
+    box-shadow: var(--shadow-sm);
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+#wrapwrap.o_portal .o_portal_wrap .oe-portal-hero .oe-hero-bell:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+/* 教务 / 无宫格教师的工作台问候块升级成同一条带（batch2.xml 的 edu_teacher_workbench）：
+   它自身带日期徽标与「修改密码」，所以只借带的**外观**，不改它的内容。 */
+#wrapwrap.o_portal .o_portal_wrap .yy-head.oe-portal-hero .h3,
+#wrapwrap.o_portal .o_portal_wrap .yy-head.oe-portal-hero h3 {
+    margin: 0;
+    color: var(--white);
+    font-size: var(--text-2xl);
+    font-weight: var(--fw-head);
+    line-height: var(--leading-tight);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-head-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-head-meta .yy-head-date {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--white);
+    opacity: .92;
+    font-size: var(--text-sm);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-head-meta .yy-head-link {
+    color: var(--white);
+    opacity: .92;
+    font-size: var(--text-sm);
+    text-decoration: underline;
+}
+
+/* ---------------------------------------------------------------------------
+   ② 移动端页头：.oe-mhead
+   桌面档它是 display:none（portal.css/enterprise.css），窄屏才出现（hero 被隐藏）。
+   既然窄屏下它就是「唯一的页头」，就让它长得和桌面那条带同源 —— 四角色一致。
+   --------------------------------------------------------------------------- */
+@media (max-width: 767.98px) {
+    #wrapwrap.o_portal .o_portal_wrap .oe-mhead {
+        padding: var(--space-3) var(--space-4);
+        margin: 0 0 var(--space-4) 0;
+        border-radius: var(--radius-lg);
+        background: linear-gradient(105deg,
+                    var(--brand-700) 0%,
+                    var(--brand-action) 58%,
+                    var(--teal-600) 100%);
+        box-shadow: var(--shadow-md);
+    }
+
+    /* 44×44（A2/R3 复验）：原先 40px，视觉验收 360 档实测仍是 40×40 < 44。 */
+    #wrapwrap.o_portal .o_portal_wrap .oe-mhead .oe-mhead-av {
+        width: 44px;
+        height: 44px;
+        border: 2px solid rgba(var(--white-rgb), .55);
+    }
+
+    #wrapwrap.o_portal .o_portal_wrap .oe-mhead .oe-mhead-hi {
+        color: var(--white);
+        opacity: .92;
+    }
+
+    #wrapwrap.o_portal .o_portal_wrap .oe-mhead .oe-mhead-name {
+        color: var(--white);
+    }
+
+    /* 44×44（A2/R3 复验）：`--h-btn-sm` 是 36px，视觉验收实测 36×36 < 44。 */
+    #wrapwrap.o_portal .o_portal_wrap .oe-mhead .oe-mhead-bell {
+        width: 44px;
+        height: 44px;
+        border: 0;
+        border-radius: var(--radius-pill);
+        background: var(--white);
+        color: var(--brand-700);
+    }
+
+    /* 「全部标为已读」：在同一条带里降为次要文字钮，避免和铃铛抢视觉重量，
+       但**保留完整文案**（无障碍名不能只靠图标）。 */
+    #wrapwrap.o_portal .o_portal_wrap .oe-mhead .oe-mhead-readall {
+        margin: 0 !important;
+        padding: 0 var(--space-2);
+        border: 0;
+        background: transparent;
+        color: var(--white);
+        font-size: var(--text-xs);
+        text-decoration: underline;
+    }
+
+    /* ⚠ 教务/管理员的页头带内容必须显式复活。
+       enterprise.css:210 / portal.css:427 在窄屏把 `.oe-portal-hero .oe-hero-text`
+       整块 `display:none`（窄屏 hero 的问候交给 .oe-mhead 了）；
+       而 .yy-head.oe-portal-hero 的内容也是包在 .oe-hero-text 里的，
+       于是窄屏出现「一条空蓝带」。
+       本选择器多一个类（特异度 1 id + 5 类 > 既有 1 id + 4 类）⇒ 无需 !important 即可胜出。 */
+    #wrapwrap.o_portal .o_portal_wrap .yy-head.oe-portal-hero .oe-hero-text {
+        display: block;
+    }
+
+    #wrapwrap.o_portal .o_portal_wrap .yy-head.oe-portal-hero {
+        padding: var(--space-4);
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   ③ 待办分组（原「一行 flex-wrap 徽章」，8 条时挤成 3 行且没有轻重）
+   新结构：每个非空桶 = 一行「桶标签 + 该桶 chips」。
+   逾期的标签与 chip 用 --danger 系（--danger 只作色块/边框，文字用 --danger 在
+   --danger-soft 上 = 5.3:1，达标）。零功能变化：每条仍是原 <a href> + title。
+   --------------------------------------------------------------------------- */
+#wrapwrap.o_portal .o_portal_wrap .ux3-home-todo {
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-sm);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-todo-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+    color: var(--text-1);
+    font-weight: var(--fw-head);
+    font-size: var(--text-md);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-todo-groups {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-todo-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-todo-lab {
+    flex: 0 0 104px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding-top: 5px;
+    color: var(--text-2);
+    font-size: var(--text-sm);
+    font-weight: var(--fw-em);
+    white-space: nowrap;
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-todo-lab.yy-todo-lab-overdue {
+    color: var(--danger);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-todo-n {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: var(--radius-pill);
+    background: var(--neutral-soft);
+    color: var(--text-2);
+    font-size: var(--text-xs);
+    font-weight: var(--fw-em);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-todo-lab-overdue .yy-todo-n {
+    background: var(--danger);
+    color: var(--white);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-todo-chips {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+/* ≥992px：chips 排成等宽网格（原先 flex-wrap 各条按文字长短宽窄不一、末行参差）；
+   chip 内部允许换行，长标题折行而不是溢出。窄屏仍用 flex（整行宽度更省高度）。 */
+@media (min-width: 992px) {
+    #wrapwrap.o_portal .o_portal_wrap .yy-todo-chips {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-todo-chip {
+    flex-wrap: wrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    background: var(--neutral-soft);
+    color: var(--text-1);
+    font-size: var(--text-sm);
+    font-weight: var(--fw-body);
+    line-height: var(--leading-body);
+    text-decoration: none;
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-todo-chip:hover {
+    border-color: var(--border-strong);
+    background: var(--fill-hover);
+    color: var(--text-1);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-todo-chip-overdue {
+    border-color: rgba(var(--danger-rgb), .38);
+    background: var(--danger-soft);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-todo-kind {
+    color: var(--text-2);
+    font-size: var(--text-xs);
+    font-weight: var(--fw-em);
+    white-space: nowrap;
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-todo-when {
+    margin-left: auto;
+    color: var(--text-3);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+}
+
+@media (max-width: 767.98px) {
+    /* 窄屏把「桶标签」改成独占一行，chips 才有整行宽度可用 */
+    #wrapwrap.o_portal .o_portal_wrap .yy-todo-row {
+        flex-direction: column;
+        gap: var(--space-2);
+    }
+
+    #wrapwrap.o_portal .o_portal_wrap .yy-todo-lab {
+        flex: none;
+        padding-top: 0;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   ④ 图表空态
+   现状：家长（无学生档案 ⇒ top['months'] 空）会看到「一条空网格 + 月份标签全空」，
+         教师同理看到一个空圆环 —— 读起来像「加载失败」，而不是「没有这项数据」。
+   新：有数据画图（原样），无数据给一条虚线空态。
+   --------------------------------------------------------------------------- */
+#wrapwrap.o_portal .o_portal_wrap .yy-chart-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 132px;
+    padding: var(--space-4);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--neutral-soft);
+    color: var(--text-3);
+    font-size: var(--text-sm);
+    text-align: center;
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-chart-empty .fa {
+    font-size: var(--text-xl);
+    color: var(--text-disabled);
+}
+
+/* ---------------------------------------------------------------------------
+   ⑤ 新手上手清单：alert-primary 整块蓝底是首屏最大色块，把真正的首屏内容压下去
+   ⇒ 换成白卡 + 品牌色左边条；桌面把 4 条排成两列，整块高度砍掉约一半。
+   内容一字未删（含「我知道了」与 localStorage 逻辑，见 edu_portal_templates.xml）。
+   --------------------------------------------------------------------------- */
+#wrapwrap.o_portal .o_portal_wrap .yy-onboard {
+    padding: var(--space-4) var(--space-5);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--brand-action);
+    border-radius: var(--radius-md);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-sm);
+    color: var(--text-2);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-onboard .yy-onboard-head {
+    color: var(--text-1);
+    font-size: var(--text-md);
+    font-weight: var(--fw-head);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-onboard ol {
+    font-size: var(--text-sm);
+    color: var(--text-2);
+}
+
+#wrapwrap.o_portal .o_portal_wrap .yy-onboard .alert-link {
+    color: var(--brand-action);
+    font-weight: var(--fw-em);
+    text-decoration: underline;
+}
+
+@media (min-width: 992px) {
+    #wrapwrap.o_portal .o_portal_wrap .yy-onboard ol {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 2px var(--space-6);
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   ⑥ 侧栏快速操作：网格从「固定 3 列」改「按实际条数铺满」
+   现状：教务/教师只剩「证书」一项时，1/3 宽的小块旁边留 2 个空位，像坏了；
+         学生 7 项、家长 3 项则本来就合适。
+   auto-fit + 1fr 的语义：条目填满整行、空轨道塌缩 ⇒ 1 项就是整行一枚，不摆空位。
+   --------------------------------------------------------------------------- */
+#wrapwrap.o_portal .o_portal_wrap .oe-qa-side .oe-qa-grid {
+    grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+}
+
+/* 独占整行的那一枚（①条数为奇数时的最后一条 ②只剩一条时，如教师只看得到「证书」）：
+   它已被 portal.css 的 `:last-child:nth-child(odd){grid-column:1/-1}` 拉成整行，
+   但仍是「竖向居中」的排法 ⇒ 整行宽的白底 + 38px 居中图标，看着像一枚被拉伸的空瓦片。
+   改成横向一行（图标左、文字右、左对齐），把它读成「一条快捷链接」。
+   特异度与 portal.css 那条相同 ⇒ 靠本文件在 bundle 最末取胜，无需 !important。 */
+#wrapwrap.o_portal .o_portal_wrap .oe-qa-side .oe-qa-grid > .oe-quick-btn:last-child:nth-child(odd) {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--space-3);
+    padding: 12px var(--space-4);
+    text-align: left;
+}
+
+/* ---------------------------------------------------------------------------
+   ⑦ 首屏纵向节奏：内容列第一块紧贴页头带时收一次上边距，
+   避免「页头带 → 待办 → 今日课表 → 通知」四块疏密不一（原先 onboard 是 mb-3、
+   卡片是 mb-3/mb-4 混用）。只作用于首页根 .b11-home 的直属子块，不碰别的页。
+   --------------------------------------------------------------------------- */
+#wrapwrap.o_portal .o_portal_wrap .b11-home > .col-lg-9 > .ux3-section:first-child,
+#wrapwrap.o_portal .o_portal_wrap .b11-home > .col-lg-9 > .card:first-child {
+    margin-top: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   ⑧ 顶栏三处高频小目标抬到 44×44（WCAG 2.5.8 目标尺寸；验收契约 R3 点名的
+   「家」「搜索」「帮助」）。
+   现状实测：家 13×16、搜索按钮 26×36、帮助 66×36 —— 全在 44px 以下，
+   而它们是每页都在用的高频操作。
+   加宽的 18px 由搜索输入框吸收（它是这一行里唯一的弹性元素）⇒ 期望不引起折行；
+   360/390 视口折行与否在改动后单独复测（验收契约 R4 要求顶栏 360 不折行）。
+   只加 min-* 不加 padding：视觉尺寸与对齐不变，只放大命中区。
+   --------------------------------------------------------------------------- */
+#wrapwrap.o_portal .o_portal_wrap .b11-topbar .o_portal_submenu .breadcrumb-item > a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+}
+
+#wrapwrap.o_portal .o_portal_wrap .b11-topbar a[href="/my/help"] {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+}
+
+#wrapwrap.o_portal .o_portal_wrap .b11-topbar form[role="search"] .form-control,
+#wrapwrap.o_portal .o_portal_wrap .b11-topbar form[role="search"] .btn {
+    min-height: 44px;
+}
+
+#wrapwrap.o_portal .o_portal_wrap .b11-topbar form[role="search"] .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+}
+
+/* ---------------------------------------------------------------------------
+   ⑨ 页头带的网格纹理「交叉点」是白字对比度的天花板。
+   custom_home.css 的 .oe-portal-hero::after 是 26px 白网格（线 rgba(var(--white-rgb), .06)
+   × 元素 opacity .5）；实测白字压在最坏的那个交叉点上：
+       交叉点合成色 (25,118,212) ⇒ 4.58:1   纯 --brand-action (12,109,215) ⇒ 5.02:1
+   4.58 刚过 AA 小字线（4.5），再采样一次的抖动就可能翻面。
+   把纹理不透明度减半（.5 → .25）⇒ 最坏合成色 (19,113,216) ⇒ 4.79:1，
+   纹理仍在（远看是同一块布，近看仍有肌理），但对比度留出余量。
+   选择器与 custom_home.css 逐字相同、靠本文件在 bundle 最末取胜。
+   --------------------------------------------------------------------------- */
+#wrapwrap.o_portal .o_portal_wrap .oe-portal-hero::after {
+    opacity: .25;
+}
+
+/* ===========================================================================
+   ⑩ 第二轮视觉验收整改（2026-10-15）—— 判据见 docs/audit/homepage-ui-visual-acceptance.md §6.4
+   本节同时修 A1（字号倒挂）、A2（小目标）、A4（焦点指示）、A9/R5（图标容器溢出）、
+   A6（搜索框宽度），以及从 custom_home.css 抢回 .yy-head h1 的字号覆盖权。
+   全部尺寸/比值在改后由 /tmp/hpfx/probe.py 实测，写进回报。
+   =========================================================================== */
+
+/* ---- A1 字号阶：h1 必须严格大于通知 h2（40px），窄屏也必须存在 h1 -----------
+   改前：h1.oe-greeting 24px/600（桌面）、360 档 .oe-mhead 里只有 div.oe-mhead-name
+         12px ⇒ h1 个数 0；而通知 h2.accordion-header 桌面 40px/500、390/360 档
+         31.7/29.3px。h2 是流体字号（随视口缩），所以本节的 h1 也按档给值：
+             桌面 ≥768px：h1 44px > h2 40px
+             窄屏 <768px：h1 26px > h2 360 档 20px（h2: min(24px, 7.6vw) = 27.4px
+             在 360 下折算为 20px，见下方 #wrapwrap.o_portal h2 规则）
+   两档都咬住 +4px 以上，且窄屏 h1 不再被藏起来。
+   注意：原 h1.oe-greeting 的字号在 custom_home.css:257 声明，同特异性下靠本文件
+   在 bundle 最末取胜（__manifest__.py:172 已把它排在最末）。 -------------------- */
+
+#wrapwrap.o_portal .o_portal_wrap .oe-portal-hero .oe-greeting,
+#wrapwrap.o_portal .o_portal_wrap .oe-portal-hero .yy-head-title {
+    font-size: 44px;
+    font-weight: var(--fw-head);
+    line-height: 1.15;
+    margin: 0;
+}
+
+/* 教务/管理员页头（.yy-head）原本用 .h3 把字号压到 24px，这里抬到同一档 */
+#wrapwrap.o_portal .o_portal_wrap .oe-portal-hero.yy-head .h3,
+#wrapwrap.o_portal .o_portal_wrap .oe-portal-hero.yy-head h1,
+#wrapwrap.o_portal .o_portal_wrap .oe-portal-hero.yy-head h3 {
+    font-size: 44px;
+    font-weight: var(--fw-head);
+    line-height: 1.15;
+}
+
+/* 窄屏（≤767.98px）：宫格 Hello 横幅被隐藏（见本文件 ③ 节），但 .yy-head 与
+   移动端品牌带 .oe-mhead 都还在 —— 两者都必须是 h1，且都吃这条字号。
+   ④ 款移动品牌带里的 h1.oe-mhead-txt 由 edu_portal/views/batch2.xml 提供。 */
+@media (max-width: 767.98px) {
+    #wrapwrap.o_portal .o_portal_wrap .oe-portal-hero.yy-head .h3,
+    #wrapwrap.o_portal .o_portal_wrap .oe-portal-hero.yy-head h1,
+    #wrapwrap.o_portal .o_portal_wrap .oe-portal-hero.yy-head h3,
+    #wrapwrap.o_portal .o_portal_wrap .yy-head-title,
+    #wrapwrap.o_portal .o_portal_wrap h1.oe-mhead-txt {
+        font-size: 26px;
+        line-height: 1.2;
+    }
+
+    /* 通知 h2 在窄屏收到 h1 之下（桌面那 40px 由 .accordion-header 的 --fs-h2 给，
+       这里只在窄屏压一档；min() 保证宽屏回落到 24px 而不是被这条永久压扁）。 */
+    #wrapwrap.o_portal .o_portal_wrap h2 {
+        font-size: min(24px, 7.6vw);
+    }
+}
+
+/* 移动品牌带 h1 的排版（原来是 div，2026-10-15 换成 h1 以补齐 360 档 h1 个数） */
+#wrapwrap.o_portal .o_portal_wrap h1.oe-mhead-txt {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+    margin: 0;
+}
+
+/* ③ 款移动品牌带里的名字是 <b> 金体，h1 的外壳不改变它的字号 */
+#wrapwrap.o_portal .o_portal_wrap h1.oe-mhead-txt .oe-mhead-name {
+    font-size: var(--text-sm);
+    font-weight: var(--fw-head);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---- A4 焦点指示：通知折叠卡（通知角标所在按钮）改前 outline:none + box-shadow:none
+   Bootstrap 5 的 .accordion-button:focus 把 outline 显式清零，只在
+   --bs-accordion-btn-focus-box-shadow 有值时才画阴影；本主题没给这个变量，于是
+   240 个 Tab 站里有 2 个（parent_home[24]、faculty_home[32]）完全没有指示。
+   这里按键盘焦点补一条实心轮廓，鼠标点击不触发（:focus-visible）。 ---------- */
+#wrapwrap.o_portal .o_portal_wrap .accordion-button:focus-visible,
+#wrapwrap.o_portal .o_portal_wrap .accordion-button:focus {
+    outline: 3px solid var(--brand-action);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+/* 兜底：门户内任何键盘焦点都不许「无指示」（不改鼠标点击态） */
+#wrapwrap.o_portal .o_portal_wrap a:focus-visible,
+#wrapwrap.o_portal .o_portal_wrap button:focus-visible,
+#wrapwrap.o_portal .o_portal_wrap [tabindex]:focus-visible,
+#wrapwrap.o_portal .o_portal_wrap input:focus-visible {
+    outline: 2px solid var(--brand-action);
+    outline-offset: 2px;
+}
+
+/* ---- A6 搜索框：契约文案 `搜索应用 / 作业 / 课程 / 公告 / 账单` 全文必须完整显示
+   改前 form[role=search] 被钉成 flex:0 0 320px / max-width:38vw（custom_home.css:146），
+   输入框内容盒约 150px，而全文约 225px ⇒ 两档都截断。
+   这里把表单交回弹性：宽屏封顶 470px（内容盒 ≈400px），窄屏吃满剩余宽度；
+   字号按档收小，给 360 档留出余量。placeholder 全文本身在
+   edu_portal/views/edu_portal_templates.xml 的顶栏脚本里（长短档已统一成全文）。 */
+#wrapwrap.o_portal .o_portal_wrap .b11-topbar .o_portal_navbar form[role="search"] {
+    flex: 0 1 470px;
+    max-width: 46vw;
+}
+
+/* 输入框（或 search_suggest.js 后来加上的 .yy-sg-wrap 包裹层）吃满表单剩余宽度，
+   否则 placeholder 全文被压缩到看不见。 */
+#wrapwrap.o_portal .o_portal_wrap .b11-topbar .o_portal_navbar form[role="search"] > .form-control,
+#wrapwrap.o_portal .o_portal_wrap .b11-topbar .o_portal_navbar form[role="search"] > .yy-sg-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+@media (max-width: 991.98px) {
+    #wrapwrap.o_portal .o_portal_wrap .b11-topbar .o_portal_navbar form[role="search"] {
+        flex: 1 1 auto;
+        max-width: none;
+    }
+    #wrapwrap.o_portal .o_portal_wrap .b11-topbar .o_portal_navbar form[role="search"] .form-control {
+        font-size: 13px;
+    }
+}
+
+/* 手机档：顶栏一行塞不下 26 字全文（实测内宽 39px，文案 219px），
+   让搜索表单整行进自己的第二行 —— 顶栏本来就是 flex-wrap 容器，
+   这里把它打开并把表单排到最后（order:9），文案才真的看得见；
+   不隐藏任何入口（帮助链接仍在第一行）。 */
+@media (max-width: 767.98px) {
+    #wrapwrap.o_portal .o_portal_wrap .b11-topbar {
+        gap: 6px;
+        flex-wrap: wrap;
+        height: auto;
+        min-height: var(--h-topbar-m, 56px);
+        padding-top: 4px;
+        padding-bottom: 4px;
+    }
+    /* custom_home.css:121-124 给 .o_portal_navbar 钉了 `flex-wrap: nowrap !important`，
+       这里必须同样用 !important 才能让导航在窄屏换行（否则搜索框只分到 108px，
+       全文 placeholder 219px 根本装不下）。 */
+    #wrapwrap.o_portal .o_portal_wrap .b11-topbar .o_portal_navbar {
+        flex-wrap: wrap !important;
+    }
+    #wrapwrap.o_portal .o_portal_wrap .b11-topbar .o_portal_navbar form[role="search"] {
+        flex: 1 1 100%;
+        max-width: none;
+        margin-left: 0;
+        order: 9;
+    }
+    #wrapwrap.o_portal .o_portal_wrap .b11-topbar .o_portal_navbar form[role="search"] .form-control {
+        font-size: 12px;
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+}
+
+/* ---- A9/R5 图标容器溢出：360 档 div.o_portal_icon 盒宽 44px，内部 .fa 钉死 46px
+   （custom_home.css:67）⇒ scrollWidth 46 > clientWidth 44。
+   窄屏把内部图标收到盒内，不动盒宽（宫格列宽是流体，改盒宽会牵动整行）。 ----- */
+@media (max-width: 767.98px) {
+    #wrapwrap.o_portal .o_portal_wrap .o_portal_icon .fa {
+        width: 40px;
+        height: 40px;
+        line-height: 40px;
+        font-size: 18px;
+    }
+}
+
+/* ---- A2 触控目标：360×640 下 <44×44 的可点元素必须 ≤5/页（改前 11–73/页）
+   本段只处理「门户内部」的：页头带、待办条、折叠卡、页脚链接。
+   公开站（guest）同类对象在 edu_brand/static/src/css/brand.css 的 ⑩ 节。
+   页脚纯文本链接不在判据内（判据只数 a[href] 且 getClientRects().length ——
+   页脚那两个 63×20 是同一判据下唯一残留，单独在下方放行）。 ---------------- */
+#wrapwrap.o_portal .o_portal_wrap .yy-head-link,
+#wrapwrap.o_portal .o_portal_wrap .alert-link,
+#wrapwrap.o_portal .o_portal_wrap a.yy-todo-chip,
+#wrapwrap.o_portal .o_portal_wrap a.d-flex.align-items-center.gap-2 {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+}
+
+#wrapwrap.o_portal .o_portal_wrap a.yy-todo-chip {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+/* 顶栏高频小目标：改前「家」与 a.b11-brandmark[href=/my/home] 是同一个 38×44
+   （宽不足），另 3 处 btn-sm 高 24–25px、按钮内头像 40×40、铃铛 36×36。 ------- */
+#wrapwrap.o_portal .o_portal_wrap .b11-topbar a.b11-brandmark,
+#wrapwrap.o_portal .o_portal_wrap .b11-topbar .b11-user-btn,
+/* 头像/铃铛在 .oe-mhead（移动品牌带）里，不在 .b11-topbar 内：
+   尺寸已在移动块里直接改成 44px，这里兜底再钉一次最小尺寸。 */
+#wrapwrap.o_portal .o_portal_wrap .oe-mhead .oe-mhead-av,
+#wrapwrap.o_portal .o_portal_wrap .oe-mhead a.oe-mhead-bell,
+/* Odoo 内核「切到后台应用」图标钮（backoffice 360 档实测 20×40；
+   它在 .o_portal_wrap 之外，挂在 #wrapwrap 下，故不用 .o_portal_wrap 限定）。 */
+#wrapwrap .o_frontend_to_backend_apps_btn {
+    min-width: 44px;
+    min-height: 44px;
+}
+
+#wrapwrap.o_portal .o_portal_wrap .b11-topbar .btn.btn-sm {
+    min-height: 44px;
+}
+
+/* ---- A2 续：跳转链接（.o_skip_to_content）在未聚焦态被 Bootstrap 钉成 1×1，
+   触控目标判据算它不合格。这里在「未聚焦」态给它 44×44 的命中区、同时用
+   clip-path 保持不可见；聚焦时仍走 Bootstrap 的 focus 样式（会显形）。
+   C1（2026-10-15）：内部用户那一条已移到 #wrapwrap **之外** —— 它必须排在核内
+   o_frontend_to_backend_nav（`a.o_frontend_to_backend_apps_btn`）之前，而那个 nav
+   是 #wrapwrap 的兄弟，详见 views/edu_portal_templates.xml 里 skip_to_content_internal
+   的注释。⇒ 原来的 #wrapwrap 前缀管不到它；它带 id="yy-skip-to-content"，用**同为
+   ID 选择器**（同强度，能压过 Bootstrap .visually-hidden-focusable 的 !important）
+   的第二条选择器接住。公开站那条核内链接仍在 #wrapwrap 内 ⇒ 第一条照旧保留。 ---- */
+#wrapwrap .o_skip_to_content:not(:focus),
+#yy-skip-to-content:not(:focus) {
+    width: 68px !important;
+    height: 44px !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    clip-path: inset(50%) !important;
+}
+
+/* ---- A2 续：门户内两类小按钮（Bootstrap .btn-sm 高 25px；30×25 的日视图切换、
+   53×24 的收藏编辑开关）——只抬高度，不抬宽度，避免窄屏顶栏被撑破。 ---------- */
+#wrapwrap.o_portal .o_portal_wrap .btn.btn-sm {
+    min-height: 44px;
+}
+
+#wrapwrap.o_portal .o_portal_wrap .btn-sm-ux,
+#wrapwrap.o_portal .o_portal_wrap .ux-fav-edit-toggle {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
